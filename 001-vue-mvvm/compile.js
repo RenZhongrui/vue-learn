@@ -14,7 +14,12 @@ class Compile {
         this.el = this.isElementNode(el)? el : document.querySelector(el);
         this.vm = vm;
         if (this.el) {
-
+            // 开始编译
+            // 1、先将真实的DOM移入到内存中，fragment
+            let fragment = this.nodeToFragment(this.el);
+            // 2、编译fragment：提取想要的元素节点(v-model)和文本节点{{}}
+            this.compile(fragment);
+            // 3、把编译好的fragment塞回到页面
         }
     }
 
@@ -29,5 +34,19 @@ class Compile {
         return node.nodeType === 1; // 1表示node是元素节点
     }
     // 核心方法
+    nodeToFragment(el) { // 需要将el中的内容全部放到内存中
+        let fragment = document.createDocumentFragment(); // 创建文档碎片
+        let firstChild;
+        // 会一直将第一个赋值，然后再append，append之后原dom上就不存在了，所以会将所有的元素添加到fragment中
+        while (firstChild = el.firstChild){
+            fragment.append(firstChild); // 移进去之后，原来的dom上就没有了这个节点
+        }
+        return fragment;
+    }
 
+    // 编译
+    compile(fragment) {
+        let childNodes = fragment.childNodes;
+        console.log(childNodes)
+    }
 }
