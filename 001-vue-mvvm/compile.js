@@ -33,6 +33,12 @@ class Compile {
          */
         return node.nodeType === 1; // 1表示node是元素节点
     }
+
+    // 是不是指令
+    isDirective(name) {
+        return name.includes("v-");
+    }
+
     // 核心方法
     nodeToFragment(el) { // 需要将el中的内容全部放到内存中
         let fragment = document.createDocumentFragment(); // 创建文档碎片
@@ -44,9 +50,49 @@ class Compile {
         return fragment;
     }
 
+    /**
+     * 编译元素
+     * 1、v-model类型的
+     * 2、从属性中遍历获取
+     */
+    compileElement(node) {
+        let attrs = node.attributes; // 取出当前节点的属性，返回值是类似于数组
+        // console.log(attrs)
+        Array.from(attrs).forEach(attr => {
+            // console.log("name:"+attr.name)
+            // console.log("value:"+attr.value)
+            // 判断属性名称是否包含v-
+            let attrName = attr.name;
+            if (this.isDirective(attrName)) {
+                // 如果是指令则取到对应的值放到节点中
+                let expr = attr.value;
+
+            }
+        })
+    }
+
+    /**
+     * 编译文本
+     * 带{{}}
+     */
+    compileText() {
+
+    }
     // 编译
     compile(fragment) {
-        let childNodes = fragment.childNodes;
+        let childNodes = fragment.childNodes; // 包括文本和空白，不能获取子节点上的子节点，需要递归
         console.log(childNodes)
+        Array.from(childNodes).forEach(node => {
+            if (this.isElementNode(node)) { // 元素节点
+                // 如果是元素节点，还需要深入去遍历
+                // console.log("元素节点：", node)
+                this.compileElement(node);
+                this.compile(node);
+            } else { // 文本节点
+                // console.log("文本节点：", node);
+                this.compileText(node);
+            }
+        })
     }
+
 }
