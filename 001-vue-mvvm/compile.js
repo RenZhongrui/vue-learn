@@ -124,10 +124,38 @@ CompileUtil = {
         let updaterFn = this.updater["textUpdater"];
         // expr是{{message.a}} => message.a => 再取值
         let value = this.getTextVal(vm, expr);
+        // {{a}} {{b}}
+        expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
+            new Watcher(vm, arguments[1],(value) => {
+                // 当某个地方调用了watcher的update方法的时候，才会执行这个回调
+                // 如果数据变化了，文本节点需要重新获取依赖的属性更新文本中的内容
+                updaterFn && updaterFn(node, this.getTextVal(vm, expr));
+            })
+            return this.getVal(vm, arguments[1]);
+        })
         updaterFn && updaterFn(node, value);
+    },
+    setVal(vm, expr, value) {
+        expr = expr.split(".");
+        // 收敛方法
+        return expr.reduce((prev, next, currentIndex)=> {
+            if (currentIndex === expr.length -1){
+                return prev[next] = value;
+            }
+            return prev[next];
+        }, vm.$data);
     },
     model(node, vm, expr) { // 输入框处理
         let updaterFn = this.updater["modelUpdater"];
+        // 输入框改变了，需要执行watcher的回调方法，然后将新值赋值给输入框
+        new Watcher(vm,expr,(value) => {
+            // 当某个地方调用了watcher的update方法的时候，才会执行这个回调
+            updaterFn && updaterFn(node, value);
+        })
+        node.addEventListener("input", (e) => {
+            let newValue = e.target.value;
+            this.setVal(vm, expr, newValue);
+        });
         updaterFn && updaterFn(node, this.getVal(vm, expr));
     },
     html() {

@@ -9,7 +9,25 @@ class MVVM {
         this.$el = options.el;
         this.$data = options.data;
         if (this.$el) {
+            // 数据劫持，就是把对象的属性改成get、set方法
+            new Observer(this.$data);
+            this.proxyData(this.$data);
+            // 编译模板
             new Compile(this.$el, this);
         }
+    }
+
+    // 将vm.$data.message 转化成vm.message
+    proxyData(data) {
+        Object.keys(data).forEach(key => {
+            Object.defineProperty(this, key, {
+                get() {
+                    return data[key];
+                },
+                set(newValue) {
+                    data[key] = newValue;
+                }
+            });
+        });
     }
 }
