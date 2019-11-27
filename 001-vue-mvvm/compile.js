@@ -11,7 +11,7 @@ class Compile {
          * 注意： querySelector() 方法仅仅返回匹配指定选择器的第一个元素。
          * 如果你需要返回所有的元素，请使用 querySelectorAll() 方法替代。
          */
-        this.el = this.isElementNode(el)? el : document.querySelector(el);
+        this.el = this.isElementNode(el) ? el : document.querySelector(el);
         this.vm = vm;
         if (this.el) {
             // 开始编译
@@ -20,6 +20,7 @@ class Compile {
             // 2、编译fragment：提取想要的元素节点(v-model)和文本节点{{}}
             this.compile(fragment);
             // 3、把编译好的fragment塞回到页面
+            this.el.appendChild(fragment);
         }
     }
 
@@ -44,7 +45,7 @@ class Compile {
         let fragment = document.createDocumentFragment(); // 创建文档碎片
         let firstChild;
         // 会一直将第一个赋值，然后再append，append之后原dom上就不存在了，所以会将所有的元素添加到fragment中
-        while (firstChild = el.firstChild){
+        while (firstChild = el.firstChild) {
             fragment.append(firstChild); // 移进去之后，原来的dom上就没有了这个节点
         }
         return fragment;
@@ -66,7 +67,8 @@ class Compile {
             if (this.isDirective(attrName)) {
                 // 如果是指令则取到对应的值放到节点中
                 let expr = attr.value;
-
+                let [, type] = attrName.split("-"); // v-model, v-text v-html取的是后面的值
+                CompileUtil[type](node, this.vm, expr);
             }
         })
     }
@@ -75,13 +77,18 @@ class Compile {
      * 编译文本
      * 带{{}}
      */
-    compileText() {
-
+    compileText(node) {
+        let expr = node.textContent; // 获取节点中的内容
+        let reg = /\{\{([^}]+)\}\}/g;
+        if (reg.test(expr)) {
+            CompileUtil['text'](node, this.vm, expr);
+        }
     }
+
     // 编译
     compile(fragment) {
         let childNodes = fragment.childNodes; // 包括文本和空白，不能获取子节点上的子节点，需要递归
-        console.log(childNodes)
+        //console.log(childNodes)
         Array.from(childNodes).forEach(node => {
             if (this.isElementNode(node)) { // 元素节点
                 // 如果是元素节点，还需要深入去遍历
@@ -95,4 +102,45 @@ class Compile {
         })
     }
 
+}
+
+CompileUtil = {
+    getVal(vm, expr) {
+        // 考虑message.a.b的情况
+        // "message.a" 先转成数组 [message, a] 然后取值 vm.$data.message.a
+        expr = expr.split("."); // [a,b,c,d]，取值的时候将上一次的结果传到下一次，reduce
+        // 返回最终结果
+        return expr.reduce((prev, next) => { // 第一次是vm.$data
+            return prev[next]; // 第一次next指数组的第一个
+        }, vm.$data);  // vm.$data第二个参数就是prev
+    },
+    getTextVal(vm, expr) {
+        return expr.replace(/\{\{([^}]+)\}\}/g, (...arguments) => {
+            // 异步的，所以要在这调用
+            return this.getVal(vm, arguments[1]);
+        });
+    },
+    text(node, vm, expr) { // 文本处理
+        let updaterFn = this.updater["textUpdater"];
+        // expr是{{message.a}} => message.a => 再取值
+        let value = this.getTextVal(vm, expr);
+        updaterFn && updaterFn(node, value);
+    },
+    model(node, vm, expr) { // 输入框处理
+        let updaterFn = this.updater["modelUpdater"];
+        updaterFn && updaterFn(node, this.getVal(vm, expr));
+    },
+    html() {
+
+    },
+    updater: {
+        textUpdater(node, value) { // 更新文本，直接赋值即可
+            node.textContent = value;
+        },
+        modelUpdater(node, value) { // 更新input
+            node.value = value;
+        },
+        htmlUpdater(node, value) { // 更新html
+        }
+    }
 }
