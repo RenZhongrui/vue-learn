@@ -2,9 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>history方式的实现原理</title>
 </head>
 <body>
-
+<a onclick="go('/home')">首页</a>
+<a onclick="go('/about')">关于</a>
+<div id="content"></div>
+<script type="text/javascript">
+    // history模式刷新页面会回到首页，而hash模式刷新页面还是在当前页面
+    let content = document.getElementById("content");
+    function go(path) {
+        history.pushState({},null,path);
+        content.innerHTML = path;
+    }
+    // 监听路由前进和后退
+    window.addEventListener("popstate",()=>{
+        go(location.pathname);
+    })
+</script>
 </body>
 </html>
