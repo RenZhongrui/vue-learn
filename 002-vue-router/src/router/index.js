@@ -4,6 +4,6 @@ import routes from "./routes";
 Vue.use(VueRouter);
 // VueRouter是一个类
 export default new VueRouter({
-    mode: "hash",
+    mode: "history", // hash history
     routes
 })
