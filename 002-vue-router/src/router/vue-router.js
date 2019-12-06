@@ -77,6 +77,9 @@ VueRouter.install = function (Vue, options) {
             if (this.$options && this.$options.router) { // 定位根router，即new Vue的时候传入的router
                 this._root = this;
                 this._router = this.$options.router;
+                // 定义响应式，通过Observer进行深度劫持，给this._router.history对象中的所有属性都定义
+                // 类似于this.xxx= this._router.history
+                Vue.util.defineReactive(this,"xxx", this._router.history);
             } else {
                 // vue组件的渲染顺序，渲染父->子->孙
                 // 如果想获取唯一的路由实例，可以通过this._root._router
@@ -93,21 +96,43 @@ VueRouter.install = function (Vue, options) {
             // 给当前this,即vue实例上定义一个$route方法
             Object.defineProperty(this, "$route", {
                 get() {
-                    return {};
+                    return {
+                        current: this._root._router.history.current // 返回当前路由
+                    };
                 }
             });
         }
     });
     // 定义Vue全局组件
     Vue.component("router-link", {
-        render(h) {
-            // 标签，参数，title
-            return h("a",{},"首页");
+        props:{
+            to: String
+        },
+        methods:{
+            handleClick(){
+                console.log("handleClick");
+            }
+        },
+        render() {
+            let mode = this._self._root._router.mode;
+            //let tag = this.tag;
+            return <a href={ mode ==='hash'? `#${this.to}`: this.to}>{this.$slots.default}</a>;
         }
     });
     Vue.component("router-view", {
         render(h) {
-            return h("a",{},"首页");
+            /**
+             * 这里的this打印的是：
+             * Proxy {_uid: 4, _isVue: true, $options: {…}, _renderProxy: Proxy, _self: VueComponent, …}
+             * 其中_self: VueComponent指向Vue实例
+             */
+            // console.log(this)
+            let current = this._self._root._router.history.current;
+            // current获取在页面onload，路由赋值之前，所以需要动态更改current，current变化会影响视图刷新
+            // 所以需要将history对象改成Object.defineProperty形式的
+            console.log(current)
+            let routesMap = this._self._root._router.routesMap;
+            return h(routesMap[current]);
         }
     });
 }

@@ -1,9 +1,9 @@
 <template>
   <div id="app">
-   <!-- <router-link to="/home">首页</router-link>
-    <router-link to="/about">关于</router-link>
-    &lt;!&ndash;router-view负责承载路由页面&ndash;&gt;
-    <router-view></router-view>-->
+    <router-link tag="div" to="/home">首页</router-link>
+    <router-link tag="div" to="/about">关于</router-link>
+    <!--router-view负责承载路由页面-->
+    <router-view></router-view>
   </div>
 </template>
 
