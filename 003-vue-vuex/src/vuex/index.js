@@ -7,6 +7,102 @@ let foreach = (obj, callback) => {
     })
 }
 
+// modules收集器
+// 格式化用户传入的操作数据，转化成如下格式
+/*
+let root = {
+    _raw: rootModule,
+    state: rootModule.state,
+    _children: {
+        a: {
+            _raw: aModule,
+            state: aModule.state,
+            _children: {
+            }
+        },
+        b: {
+            _raw: bModule,
+            state: bModule.state,
+            _children: {
+                c: {
+                    _raw: cModule,
+                    state: cModule.state,
+                    _children: {
+                    }
+                }
+            }
+        }
+    }
+} */
+class ModuleCollection {
+    constructor(options) {
+        // 将子module都深度遍历，然后格式化
+        this.register([], options);
+    }
+
+    register(path, rootModule) {
+        let rawModule = {
+            _raw: rootModule,
+            _children: {},
+            state: rootModule.state
+        }
+        // 定义root，如果实例上没有root，则将当前rawModule当做root
+        if (!this.root) {
+            this.root = rawModule;
+        } else {
+            // [b,c,e]模块，截取b,c，然后将e给c的children，将c给b的子模块
+            let parentModule = path.slice(0, -1).reduce((root, current) => {
+                return root._children[current];
+            }, this.root);
+            parentModule._children[path[path.length - 1]] = rawModule;
+        }
+        // 如果rootModule有modules子模块
+        if (rootModule.modules) {
+            foreach(rootModule.modules, (moduleName, module) => {
+                // 注册a的时候path是[a]，注册b的时候path是[b]，注册c的时候path是[b,c]
+                this.register(path.concat(moduleName), module);
+            });
+        }
+    }
+}
+
+function installModule(store, state, path, rawModule) {
+    // 处理getters
+    let getters = rawModule._raw.getters;
+    if (getters) {
+        foreach(getters, (getterName, getterFunc) => {
+            // defineProperty传参需要定义的属性的对象，需要定义的属性，需要定义的属性get或set方法
+            Object.defineProperty(store.getters, getterName, {
+                get: () => {
+                    return getterFunc(rawModule.state);
+                }
+            })
+        })
+    }
+    // 处理mutations
+    let mutations = rawModule._raw.mutations;
+    if (mutations) {
+        foreach(mutations, (mutationName, mutationFunc) => {
+            // 需要处理children中是否有mutations，并处理有相同的方法名，需要一个订阅数组来维护
+            // 如果store.mutations[mutationName]不存在就初始化为空数组
+            let arr = store.mutations[mutationName] || (store.mutations[mutationName] = []);
+            arr.push((payload) => { // 得到的是多个[fn,fn]
+                mutationFunc(rawModule.state, payload);
+            })
+        });
+    }
+    //处理actions
+    let actions = rawModule._raw.actions;
+    if (actions) {
+        foreach(actions, (actionName, actionFunc) => {
+            let arr = store.actions[actionName] || (store.actions[actionName] = []);
+            arr.push((payload) => {
+                actionFunc(store, payload);
+            });
+        })
+    }
+}
+
 class Store {
     constructor(options) {
         // 1、state的实现
@@ -15,35 +111,14 @@ class Store {
                 state: options.state
             }
         });
-        // 2、getters的实现
-        let getters = options.getters; // getters是函数
         this.getters = {};
-        foreach(getters, (getterName, getterFunc) => {
-            Object.defineProperty(this.getters, getterName, {
-                get: () => {
-                    //面向切面执行getters中的函数，使用defineProperty可以todo其他事情
-                    return getterFunc(this.state);
-                }
-            })
-        })
-
-        // 处理mutations，使用发布订阅模式
-        let mutations = options.mutations;
         this.mutations = {};
-        foreach(mutations, (mutationName, mutationFunc) => {
-            this.mutations[mutationName] = (payload) => { // 订阅
-                mutationFunc(this.state, payload);
-            };
-        });
-        // 处理actions
-        let actions = options.actions;
         this.actions = {};
-        foreach(actions, (actionName, actionFunc) => {
-            this.actions[actionName] = (payload) => {
-                actionFunc(this, payload); // 这里传的是this，即store实例
-            }
-        })
-
+        // 1、递归 + reduce格式化modules数据
+        this.modules = new ModuleCollection(options);
+        console.log(this.modules)
+        // 2、递归安装modules，参数是store实例，state数据，path数组[]，根module root
+        installModule(this, this.state, [], this.modules.root);
     }
 
     // 1、state的实现
@@ -54,12 +129,12 @@ class Store {
 
     // 3、commit的实现，es7的实现，保证里面的this永远指向store的实例
     commit = (mutationName, payload) => {
-        this.mutations[mutationName](payload); // 发布，调用commit方法的时候会调用mutations，再将所有的payload值进行更改
+        this.mutations[mutationName].forEach(fn => fn(payload)); // 发布，调用commit方法的时候会调用mutations，再将所有的payload值进行更改
     }
 
     // 4、dispatch的实现
     dispatch = (actionName, payload) => {// 这里会做一个监听，用于判断异步方法是不是在actions中执行的
-        this.actions[actionName](payload);
+        this.actions[actionName].forEach(fn => fn(payload));
     }
 }
 
