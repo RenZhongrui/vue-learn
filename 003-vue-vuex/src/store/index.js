@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
+//import Vuex from '../vuex'
 
 Vue.use(Vuex)
 
@@ -26,5 +27,39 @@ export default new Vuex.Store({
     }
   },
   modules: {
+    a: {
+      state: {
+        name: "A007"
+      },
+      mutations: {
+        SET_NAME:(state,value) =>{
+          console.log("")
+          state.name = value;
+        }
+      }
+    },
+    b: {
+      state: {
+        name: "B007"
+      },
+      mutations: {
+        SET_NAME:(state,value) =>{
+          state.name = value;
+        }
+      },
+      // vuex会把同名方法给先存好，然后进行发布订阅触发方法的执行，所有的同名方法都执行
+      modules: {
+        c: {
+          state: {
+            name: "C007"
+          },
+          mutations: {
+            SET_NAME:(state,value) =>{
+              state.name = value;
+            }
+          }
+        }
+      }
+    }
   }
 })
