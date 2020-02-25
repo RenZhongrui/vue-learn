@@ -95,12 +95,14 @@ function installModule(store, rootState, path, rawModule) {
     let getters = rawModule._raw.getters;
     if (getters) {
         foreach(getters, (getterName, getterFunc) => {
-            // defineProperty传参需要定义的属性的对象，需要定义的属性，需要定义的属性get或set方法
-            Object.defineProperty(store.getters, getterName, {
-                get: () => {
-                    return getterFunc(rawModule.state);
-                }
-            })
+            if (!store.getters[getterName]) {
+                // defineProperty传参需要定义的属性的对象，需要定义的属性，需要定义的属性get或set方法
+                Object.defineProperty(store.getters, getterName, {
+                    get: () => {
+                        return getterFunc(rawModule.state);
+                    }
+                })
+            }
         })
     }
     // 处理mutations
@@ -163,6 +165,22 @@ class Store {
     // 4、dispatch的实现
     dispatch = (actionName, payload) => {// 这里会做一个监听，用于判断异步方法是不是在actions中执行的
         this.actions[actionName].forEach(fn => fn(payload));
+    }
+
+    /**
+     * 5、动态注册
+     * @param moduleName 模块名称
+     * @param module 要注册的模块
+     */
+    registerModule(moduleName, module) {
+        // 如果不是数组先转化为数组
+        if (!Array.isArray(moduleName)) {
+            moduleName = [moduleName];
+        }
+        // 调用实例中的register方法，进行格式化数据
+        this.modules.register(moduleName, module);
+        installModule(this, this.state, [], this.modules.root);
+        // installModule(this, this.state, path, this.modules.get(path));
     }
 }
 
