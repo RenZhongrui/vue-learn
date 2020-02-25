@@ -66,7 +66,31 @@ class ModuleCollection {
     }
 }
 
-function installModule(store, state, path, rawModule) {
+function installModule(store, rootState, path, rawModule) {
+    // 当path长度大于0，说明有子模块，需要把子module的state状态定义到rootState上
+    if (path.length > 0) {
+        // vue响应式原理不能增加不存在的属性
+        // 使用set方法给rootState定义一个模块，格式如下
+        /**
+         * rootState : {
+         *     state: {
+         *         name: "tom",
+         *         a: {
+         *          state:{
+         *              name: 'a'
+         *          }
+         *        }
+         *     },
+         * }
+         */
+        let parentState = path.slice(0, -1).reduce((root, current) => {
+            return rootState[current];
+        }, rootState);
+        // 定义完之后又成了[a,b,c]形式，需要reduce来处理，也就是递归的给当前state赋值
+        // 一开始rootState为空[], parentState是rootState，往后依次递归
+        Vue.set(parentState, path[path.length - 1], rawModule.state);
+    }
+
     // 处理getters
     let getters = rawModule._raw.getters;
     if (getters) {
@@ -101,6 +125,10 @@ function installModule(store, state, path, rawModule) {
             });
         })
     }
+    // 安装rawModule中的子模块
+    foreach(rawModule._children, (moduleName, rawModule) => {
+        installModule(store, rootState, path.concat(moduleName), rawModule);
+    })
 }
 
 class Store {

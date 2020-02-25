@@ -33,7 +33,7 @@ export default new Vuex.Store({
       },
       mutations: {
         SET_NAME:(state,value) =>{
-          console.log("")
+          console.log("a")
           state.name = value;
         }
       }
@@ -44,6 +44,7 @@ export default new Vuex.Store({
       },
       mutations: {
         SET_NAME:(state,value) =>{
+          console.log("b")
           state.name = value;
         }
       },
@@ -55,6 +56,7 @@ export default new Vuex.Store({
           },
           mutations: {
             SET_NAME:(state,value) =>{
+              console.log("c")
               state.name = value;
             }
           }
